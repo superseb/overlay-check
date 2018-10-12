@@ -1,20 +1,70 @@
 overlay-check
 ========
 
-## ***FILL THIS OUT WITH A USEFUL DESCRIPTION OF THIS REPO***
+## What is it
+
+Status: alpha (hobby project with redundant code)
+
+overlay-check is supposed to run as a DaemonSet in a Kubernetes cluster, will discover all pods in the created DaemonSet (via service account) and will ping each pod except itself to test overlay network (cross host).
 
 ## Building
 
 `make`
 
+This repository is based on [https://github.com/rancher/go-skel/](https://github.com/rancher/go-skel/)
 
 ## Running
 
-`./bin/overlay-check`
+```
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: overlay-check
+spec:
+  template:
+    metadata:
+      labels:
+        app: overlay-check
+    spec:
+      containers:
+        - name: overlay-check
+          image: superseb/overlay-check:dev
+          imagePullPolicy: Always
+      serviceAccountName: overlay-check-sa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: overlay-check-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: overlay-check-read
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["apps", "extensions"]
+  resources: ["daemonsets"]
+  verbs: ["get", "watch", "list"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-pods
+subjects:
+- kind: ServiceAccount
+  name: overlay-check-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: overlay-check-read
+  apiGroup: rbac.authorization.k8s.io
+```
 
 ## License
-Copyright (c) 2018 [Rancher Labs, Inc.](http://rancher.com)
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
